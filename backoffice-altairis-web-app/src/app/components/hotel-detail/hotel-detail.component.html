@@ -1,0 +1,273 @@
+<div class="hotel-detail-container">
+  <!-- Loading State -->
+  @if (loading() && !hotel()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading hotel details...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="error-state">
+      <span class="error-icon">⚠️</span>
+      <p>{{ error() }}</p>
+      <button routerLink="/hotels" class="btn-back">← Back to Hotels</button>
+    </div>
+  }
+
+  <!-- Hotel Content -->
+  @if (hotel() && !error()) {
+    <!-- Back Button -->
+    <div class="back-button">
+      <button routerLink="/hotels" class="btn-back">
+        ← Back to Hotels
+      </button>
+    </div>
+
+    <!-- Hotel Hero Section -->
+    <div class="hotel-hero">
+      <img 
+        [src]="hotel()?.mainPhoto || 'https://via.placeholder.com/1200x400?text=Hotel+Image'" 
+        [alt]="hotel()?.name"
+        class="hero-image"
+      />
+      <div class="hero-overlay">
+        <div class="hero-content">
+          <h1>{{ hotel()?.name }}</h1>
+          <div class="stars">
+            @for (star of [].constructor(hotel()?.stars || 0); track $index) {
+              <span class="star filled">★</span>
+            }
+            @for (star of [].constructor(5 - (hotel()?.stars || 0)); track $index) {
+              <span class="star empty">☆</span>
+            }
+          </div>
+          <div class="location">
+            <span class="icon">📍</span>
+            {{ hotel()?.address }}, {{ hotel()?.city }}, {{ hotel()?.country }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hotel Info Section -->
+    <div class="hotel-info-section">
+      <div class="info-card">
+        <h2>About this hotel</h2>
+        <p class="description">{{ hotel()?.description || 'No description available.' }}</p>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">📍 Location</span>
+            <span class="info-value">{{ hotel()?.city }}, {{ hotel()?.country }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">🏨 Address</span>
+            <span class="info-value">{{ hotel()?.address }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">⭐ Rating</span>
+            <span class="info-value">{{ hotel()?.stars }} Stars</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">🛏️ Total Rooms</span>
+            <span class="info-value">{{ roomStats().total }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date Selection for Availability -->
+    <div class="date-selection">
+      <div class="date-picker-group">
+        <label>Check-in Date</label>
+        <input 
+          type="date" 
+          [value]="checkInDate() | date:'yyyy-MM-dd'"
+          (change)="onCheckInDateChange($event)"
+          class="date-input"
+        />
+      </div>
+      <div class="date-picker-group">
+        <label>Check-out Date</label>
+        <input 
+          type="date" 
+          [value]="checkOutDate() | date:'yyyy-MM-dd'"
+          (change)="onCheckOutDateChange($event)"
+          class="date-input"
+        />
+      </div>
+      <button class="btn-check-availability" (click)="checkAvailability()" [disabled]="checkingAvailability()">
+        @if (checkingAvailability()) {
+          <span class="spinner-small"></span> Checking...
+        } @else {
+          Check Availability
+        }
+      </button>
+    </div>
+
+    <!-- Rooms Section -->
+    <div class="rooms-section">
+      <div class="rooms-header">
+        <h2>Rooms & Suites</h2>
+        <div class="room-stats">
+          @if (availableOnly()) {
+            <span class="stat-badge filtered">
+              🔍 {{ filteredRooms().length }} available for selected dates
+            </span>
+          } @else {
+            <span class="stat-badge available">{{ roomStats().total }} Total Rooms</span>
+          }
+        </div>
+      </div>
+
+      <!-- Filters Bar -->
+      <div class="filters-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            placeholder="Search by room type or description..." 
+            (input)="onSearch($event)"
+            [value]="searchTerm()"
+            class="search-input"
+          />
+        </div>
+        
+        <div class="filter-options">
+          <select class="filter-select" (change)="onFilterByType($event)" [value]="typeFilter()">
+            <option value="">All Room Types</option>
+            @for (type of roomTypes(); track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+          
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              [checked]="availableOnly()"
+              (change)="onAvailableOnlyChange($event)"
+              class="checkbox-input"
+            />
+            <span class="checkbox-text">✓ Available only for selected dates</span>
+          </label>
+          
+          @if (searchTerm() || typeFilter() || availableOnly()) {
+            <button class="btn-clear" (click)="clearFilters()">
+              ✕ Clear all filters
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Rooms Loading -->
+      @if (loading()) {
+        <div class="rooms-loading">
+          <div class="spinner-small"></div>
+          <p>Loading rooms...</p>
+        </div>
+      }
+
+      <!-- Empty Rooms State -->
+      @if (!loading() && filteredRooms().length === 0 && allRooms().length > 0) {
+        <div class="empty-rooms">
+          <span class="empty-icon">🔍</span>
+          <h3>No rooms match your filters</h3>
+          <p>
+            @if (availableOnly() && (searchTerm() || typeFilter())) {
+              No available rooms match your search criteria for the selected dates.
+            } @else if (availableOnly()) {
+              No rooms are available for the selected dates. Try different dates!
+            } @else {
+              Try adjusting your search or filter criteria.
+            }
+          </p>
+          <button class="btn-clear" (click)="clearFilters()">Clear all filters</button>
+        </div>
+      }
+
+      <!-- No Rooms State -->
+      @if (!loading() && allRooms().length === 0) {
+        <div class="empty-rooms">
+          <span class="empty-icon">🏨</span>
+          <h3>No rooms available</h3>
+          <p>This hotel doesn't have any rooms configured yet.</p>
+        </div>
+      }
+
+      <!-- Rooms Table -->
+      @if (!loading() && filteredRooms().length > 0) {
+        <div class="table-wrapper">
+          <table class="rooms-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Price per night</th>
+                <th>Availability</th>
+                <th>Actions</th>
+              </thead>
+            <tbody>
+              @for (room of filteredRooms(); track room.id) {
+                <tr [class.unavailable-row]="!room.isAvailable">
+                  <td class="room-type-cell">
+                    <div class="room-type-info">
+                      <img 
+                        [src]="room.photo || 'https://via.placeholder.com/40x40?text=Room'" 
+                        [alt]="room.type"
+                        class="room-thumbnail"
+                      />
+                      <strong>{{ room.type }}</strong>
+                    </div>
+                   </td>
+                  <td class="room-description-cell">
+                    {{ room.description || 'No description available.' }}
+                   </td>
+                  <td class="room-price-cell">
+                    <span class="price">${{ room.pricePerNight }}</span>
+                    <span class="period">/ night</span>
+                   </td>
+                  <td class="room-status-cell">
+                    @if (room.isAvailable) {
+                      <span class="status-badge available">Available</span>
+                    } @else {
+                      <span class="status-badge unavailable">Unavailable for selected dates</span>
+                    }
+                   </td>
+                  <td class="room-actions-cell">
+                    <button 
+                      (click)="openBookingModal(room)" 
+                      class="btn-book"
+                      [disabled]="!room.isAvailable">
+                      Book Now
+                    </button>
+                   </td>
+                 </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Rooms Footer -->
+        <div class="rooms-footer">
+          <div class="rooms-count">
+            Showing {{ filteredRooms().length }} of {{ allRooms().length }} rooms
+            @if (searchTerm() || typeFilter() || availableOnly()) {
+              <span class="filter-badge">(filtered)</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Booking Modal -->
+<app-booking-modal
+  [isOpen]="isBookingModalOpen()"
+  [room]="selectedRoom()"
+  [hotelName]="hotel()?.name || ''"
+  (close)="closeBookingModal()"
+  (booked)="onBookingComplete()"
+></app-booking-modal>

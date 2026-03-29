@@ -1,0 +1,168 @@
+<div class="dashboard-container">
+  <!-- Header -->
+  <div class="dashboard-header">
+    <h1>Room Availability Dashboard</h1>
+    <p class="subtitle">Track occupancy rates and room availability across your properties</p>
+  </div>
+  
+  <!-- Filters Bar -->
+<div class="filters-bar">  
+<select class="filter-select" [value]="selectedCountry()" (change)="onCountryChange($event)">
+  <option value="">All Countries</option>
+  @for (country of allCountries(); track country) {
+    <option [value]="country">{{ country }}</option>
+  }
+</select>
+
+<!-- Cities dropdown - shows cities based on selected country -->
+<select class="filter-select" [value]="selectedCity()" (change)="onCityChange($event)">
+  <option value="">All Cities</option>
+  @for (city of allCities(); track city) {
+    <option [value]="city">{{ city }}</option>
+  }
+</select>
+  
+    <select class="filter-select" [(ngModel)]="selectedYear" (change)="onYearChange($event)">
+        @for (year of yearRange(); track year) {
+            <option [value]="year">{{ year }}</option>
+        }
+    </select>
+  
+  <button class="btn-clear" (click)="clearFilters()">
+    Clear Filters
+  </button>
+</div>
+  
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading availability data...</p>
+    </div>
+  }
+  
+  <!-- Error State -->
+  @if (error()) {
+    <div class="error-state">
+      <p>{{ error() }}</p>
+      <button (click)="loadAvailabilityData()">Retry</button>
+    </div>
+  }
+  
+  <!-- Dashboard Content -->
+  @if (!loading() && !error()) {
+
+    <!-- Chart Section -->
+    <div class="chart-section">
+      <div class="section-header">
+        <h2>Monthly Room Availability - {{ selectedYear() }}</h2>
+        <button class="btn-export" (click)="exportToCSV()">Export to CSV</button>
+      </div>
+      
+      <!-- Show message when no data -->
+      @if (filteredStats().length === 0 && !loading()) {
+        <div class="no-data-message">
+          <p>No booking data available for {{ selectedYear() }}. Add some bookings to see the chart.</p>
+        </div>
+      }
+      
+      @if (filteredStats().length > 0) {
+        <div class="chart-wrapper">
+          <!-- Y-Axis Labels -->
+          <div class="y-axis-labels">
+            <div class="y-label">{{ maxChartValue() }}</div>
+            <div class="y-label">{{ Math.floor(maxChartValue() * 0.75) }}</div>
+            <div class="y-label">{{ Math.floor(maxChartValue() * 0.5) }}</div>
+            <div class="y-label">{{ Math.floor(maxChartValue() * 0.25) }}</div>
+            <div class="y-label">0</div>
+          </div>
+          
+          <!-- Chart Area -->
+          <div class="chart-area">
+            <!-- Grid Lines -->
+            <div class="grid-lines">
+              <div class="grid-line"></div>
+              <div class="grid-line"></div>
+              <div class="grid-line"></div>
+              <div class="grid-line"></div>
+              <div class="grid-line"></div>
+            </div>
+            
+            <!-- Bars Container -->
+            <div class="bars-container">
+              @for (item of chartData(); track item.month) {
+                <div class="bar-group">
+                  <div class="bars">
+                    <!-- Available bar -->
+                    <div 
+                      class="bar available" 
+                      [style.height.px]="getBarHeight(item.availableRooms)"
+                      [title]="'Available: ' + item.availableRooms + ' rooms'">
+                      @if (item.availableRooms > 0) {
+                        <span class="bar-value">{{ item.availableRooms }}</span>
+                      }
+                    </div>
+                    <!-- Booked bar -->
+                    <div 
+                      class="bar booked" 
+                      [style.height.px]="getBarHeight(item.bookedRooms)"
+                      [title]="'Booked: ' + item.bookedRooms + ' rooms'">
+                      @if (item.bookedRooms > 0) {
+                        <span class="bar-value">{{ item.bookedRooms }}</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="month-label">{{ item.month }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-color available"></div>
+            <span>Available Rooms</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color booked"></div>
+            <span>Booked Rooms</span>
+          </div>
+        </div>
+      }
+    </div>
+    
+    <!-- Monthly Breakdown Table -->
+    @if (filteredStats().length > 0) {
+      <div class="table-section">
+        <h2>Monthly Breakdown</h2>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Total Rooms</th>
+              <th>Booked</th>
+              <th>Available</th>
+              <th>Occupancy</th>
+            </thead>
+          <tbody>
+            @for (stat of filteredStats(); track $index) {
+              <tr>
+                <td><strong>{{ stat.month }} {{ stat.year }}</strong></td>
+                <td>{{ stat.totalRooms }}</td>
+                <td class="booked-cell">{{ stat.bookedRooms }}</td>
+                <td class="available-cell">{{ stat.availableRooms }}</td>
+                <td>
+                  <span class="occupancy-badge" [style.background]="getOccupancyColor(stat.occupancyRate)">
+                    {{ stat.occupancyRate.toFixed(1) }}%
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</div>

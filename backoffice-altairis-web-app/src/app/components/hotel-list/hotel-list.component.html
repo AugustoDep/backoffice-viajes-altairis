@@ -1,0 +1,215 @@
+<div class="backoffice-container">
+  <!-- Header -->
+  <div class="backoffice-header">
+    <div class="header-left">
+      <h1>Hotels Management</h1>
+      <p class="subtitle">Manage your hotel inventory, view details, and control availability</p>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" (click)="refresh()" title="Refresh">
+        🔄 Refresh
+      </button>
+      <button class="btn-create" (click)="openCreateModal()">
+        <span class="icon">+</span> Add New Hotel
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        placeholder="Search hotels by name, city or country..." 
+        (input)="onSearch($event)"
+        [value]="searchTerm()"
+        class="search-input"
+      />
+    </div>
+    <div class="filter-options">
+      <select class="filter-select" (change)="onFilterByStars($event)" [value]="starFilter()">
+        <option value="">All Stars</option>
+        <option value="5">★★★★★ (5 Stars)</option>
+        <option value="4">★★★★☆ (4 Stars)</option>
+        <option value="3">★★★☆☆ (3 Stars)</option>
+        <option value="2">★★☆☆☆ (2 Stars)</option>
+        <option value="1">★☆☆☆☆ (1 Star)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading hotels...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="error-state">
+      <span class="error-icon">⚠️</span>
+      <p>{{ error() }}</p>
+      <button (click)="refresh()" class="btn-retry">Retry</button>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && !error() && totalCount() === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🏨</span>
+      <h3>No hotels found</h3>
+      <p>Get started by adding your first hotel</p>
+      <button (click)="openCreateModal()" class="btn-create-empty">Add New Hotel</button>
+    </div>
+  }
+
+  <!-- Hotels Table -->
+  @if (!loading() && !error() && totalCount() > 0) {
+    <div class="table-wrapper">
+      <table class="hotels-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Hotel</th>
+            <th>Location</th>
+            <th>Stars</th>
+            <th>Rooms</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </thead>
+        <tbody>
+          @for (hotel of paginatedHotels(); track hotel.id) {
+            <tr>
+              <td class="id-cell">#{{ hotel.id }}</td>
+              <td class="hotel-cell">
+                <div class="hotel-info">
+                  <img 
+                    [src]="hotel.mainPhoto || 'https://via.placeholder.com/60x60?text=No+Image'" 
+                    [alt]="hotel.name"
+                    class="hotel-thumbnail"
+                  />
+                  <div class="hotel-details">
+                    <strong>{{ hotel.name }}</strong>
+                    <span class="hotel-address">{{ hotel.address }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="location-cell">
+                <span class="city">{{ hotel.city }}</span>
+                <span class="country">{{ hotel.country }}</span>
+              </td>
+              <td class="stars-cell">
+                <div class="stars">
+                  @for (star of [].constructor(hotel.stars); track $index) {
+                    <span class="star filled">★</span>
+                  }
+                  @for (star of [].constructor(5 - hotel.stars); track $index) {
+                    <span class="star empty">☆</span>
+                  }
+                </div>
+              </td>
+              <td class="rooms-cell">
+                <span class="room-count">{{ hotel.rooms?.length || 0 }}</span>
+                <span class="room-label">rooms</span>
+              </td>
+              <td class="status-cell">
+                @if ((hotel.rooms?.length || 0) > 0) {
+                  <span class="status active">Active</span>
+                } @else {
+                  <span class="status inactive">No Rooms</span>
+                }
+              </td>
+              <td class="actions-cell">
+                <button 
+                  [routerLink]="['/hotels', hotel.id]" 
+                  class="btn-view" 
+                  title="View Details">
+                  👁️
+                </button>
+                <button 
+                  (click)="openEditModal(hotel)" 
+                  class="btn-edit" 
+                  title="Edit Hotel">
+                  ✏️
+                </button>
+                <button 
+                  (click)="deleteHotel(hotel.id)" 
+                  class="btn-delete" 
+                  title="Delete Hotel">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="pagination-container">
+      <div class="pagination-info">
+        Showing {{ displayRange().start }} - {{ displayRange().end }} 
+        of {{ totalCount() }} hotels
+        @if (searchTerm() || starFilter()) {
+          <span class="filter-badge">(filtered)</span>
+        }
+      </div>
+      
+      <div class="pagination-controls">
+        <button 
+          class="pagination-btn" 
+          [disabled]="currentPage() === 1" 
+          (click)="previousPage()">
+          ‹ Previous
+        </button>
+        
+        @for (page of pageNumbers(); track $index) {
+          @if (page === '...') {
+            <span class="pagination-ellipsis">...</span>
+          } @else {
+            <button 
+              class="pagination-btn-number" 
+              [class.active]="currentPage() === page"
+              (click)="goToPage(page)">
+              {{ page }}
+            </button>
+          }
+        }
+        
+        <button 
+          class="pagination-btn" 
+          [disabled]="currentPage() === totalPages()" 
+          (click)="nextPage()">
+          Next ›
+        </button>
+      </div>
+    </div>
+    
+    <!-- Table Footer -->
+    <div class="table-footer">
+      <div class="stats">
+        {{ totalCount() }} total hotels
+        @if (searchTerm() || starFilter()) {
+          <span class="filter-badge">(filtered)</span>
+        }
+      </div>
+      <div class="actions-footer">
+        <button class="btn-export" (click)="exportToCSV()">
+          📊 Export to CSV
+        </button>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Hotel Form Modal -->
+<app-hotel-form-modal
+  [isOpen]="isModalOpen()"
+  [mode]="modalMode"
+  [hotel]="selectedHotel"
+  (close)="onModalClose()"
+  (saved)="onHotelSaved($event)"
+></app-hotel-form-modal>
